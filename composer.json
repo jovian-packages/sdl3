@@ -1,0 +1,62 @@
+{
+    "name": "jovian/sdl3",
+    "description": "Typed PHP projection of The PHP SDL3 Extension",
+    "type": "library",
+    "version": "0.8.0",
+    "keywords": [
+        "framework",
+        "venusian",
+        "scrapyard-io",
+        "sdl",
+        "sdl3",
+        "gpu",
+        "bindings"
+    ],
+    "license": "MIT",
+    "homepage": "https://venusian.projectsaturnstudios.com/ecosystem/jovian/sdl3/0.8.x/overview",
+    "support": {
+        "docs": "https://venusian.projectsaturnstudios.com/ecosystem/jovian/sdl3/0.8.x/overview",
+        "issues": "https://github.com/jovian/sdl3/issues",
+        "source": "https://github.com/jovian/sdl3"
+    },
+    "authors": [
+        {
+            "name": "Angel Gonzalez",
+            "email": "angel@projectsaturnstudios.com"
+        }
+    ],
+    "require": {
+        "php": "^8.4|^8.5|^8.6",
+        "ext-sdl3": "^0.7.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Jovian\\Bindings\\Sdl3\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DeptOfScrapyardRobotics\\Tests\\": "tests/",
+            "Jovian\\Bindings\\Sdl3\\Generator\\": "scripts/Generator/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "0.8.x-dev"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "pest"
+    }
+}
