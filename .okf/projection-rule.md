@@ -24,7 +24,7 @@ yes it belongs here. If it needs two calls, a branch on a result, an invented
 default, or a reshaped return, it is composition and belongs in
 `venusian-sdl3`.
 
-All 716 generated bodies satisfy this. Two independent checks enforce it —
+All 727 generated bodies satisfy this. Two independent checks enforce it —
 `tests/Generator/GenerateCheckTest.php` and `scripts/gates/verify-parity.mjs`
 both count `Ext*::` occurrences per body and require exactly one.
 
@@ -48,8 +48,8 @@ read `$this->handle`.
 
 `ext-sdl3` has none of that. Reflection reports:
 
-* **29 classes, 0 functions, 0 constants**;
-* **716 public methods, every single one `public static`**;
+* **31 classes, 0 functions, 0 constants**;
+* **727 public methods, every single one `public static`**;
 * no registry call, no bridge call, no lifetime call, nothing resembling glue
   between PHP objects and native ones.
 
@@ -81,3 +81,10 @@ That last one is worth stating plainly: **this package never throws.** SDL
 reports failure by returning `false`, `0`, or an empty string and leaving a
 message in `SDL_GetError()`. The projection passes that through exactly.
 Converting it to an exception is a policy decision, and policy is composition.
+
+One exception exists in the extension itself, not in this layer:
+`SDLMetal::SDLMetalCreateView` throws `\RuntimeException` on failure instead
+of returning `0`. The projected body is still exactly one extension call —
+`return ExtSDLMetal::SDLMetalCreateView($window);` — so whatever ext-sdl3
+does, throw included, passes through unchanged. See
+[quirks.md](/quirks.md).

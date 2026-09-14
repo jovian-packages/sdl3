@@ -1,6 +1,6 @@
 ---
 type: Reference
-title: ext-sdl3 0.7.0 conventions the projection mirrors rather than smooths
+title: ext-sdl3 0.8.0 conventions the projection mirrors rather than smooths
 description: >-
   Pointer-as-int handles, array returns that are sometimes lists and sometimes
   maps, creators that return a struct instead of a handle, and a few return
@@ -14,7 +14,7 @@ generated:
 
 # Extension conventions, mirrored not smoothed
 
-Everything on this page is something ext-sdl3 0.7.0 does that a caller will
+Everything on this page is something ext-sdl3 0.8.0 does that a caller will
 find surprising. None of it is fixed here. Smoothing is `venusian-sdl3`'s job,
 and a projection that quietly corrected its extension would be lying about what
 it projects.
@@ -100,24 +100,46 @@ Note also that `SDL_GetError()` is not cleared by a successful call. Call
 `SDLError::SDLClearError()` before an operation whose error you intend to read,
 or you may read a stale message from something unrelated.
 
+## Metal and Vulkan handles are pointer bits too, and Vulkan needs video up
+
+`SDLMetal` and `SDLVulkan` (0.8.0) follow the same handle convention as
+everything else: `SDL_MetalView`, `VkInstance`, `VkSurfaceKHR` all cross as an
+`int`. `SDLVulkanCreateSurface` returns `0` on failure exactly like a creator
+elsewhere — check `SDLError::SDLGetError()`, not the type.
+
+`SDLVulkanLoadLibrary` fails with `"Video subsystem has not been initialized"`
+unless `SDL::SDLInit(SDLInitFlags::VIDEO->value)` ran first. That is SDL's own
+precondition (`SDL_Vulkan_LoadLibrary` is implemented by the video driver), not
+a projection quirk — mirrored the same way as everything else on this page.
+
+`SDLMetalCreateView` breaks the "SDL never throws" convention on purpose: the
+extension throws `\RuntimeException` on a `NULL` `SDL_MetalView` instead of
+returning `0`. Every other creator in the extension returns a failure sentinel
+and leaves the message in `SDL_GetError()`; this one alone raises. The
+projection mirrors it exactly rather than smoothing it into the sentinel
+convention — see [projection-rule.md](/projection-rule.md).
+
 ## Method names flatten SDL's underscores
 
 `SDL_GL_CreateContext` is `SDLGLCreateContext`. `SDL_EGL_GetCurrentDisplay` is
-`SDLEGLGetCurrentDisplay`. `SDL_rand` is `SDLRand` — the case changes too.
+`SDLEGLGetCurrentDisplay`. `SDL_Metal_CreateView` is `SDLMetalCreateView`,
+`SDL_Vulkan_LoadLibrary` is `SDLVulkanLoadLibrary` — same flattening, two more
+subsystem prefixes as of 0.8.0. `SDL_rand` is `SDLRand` — the case changes too.
 
 Two methods are not named `SDL*` at all:
 `SDLGPU::readFromGPUTransferBuffer` and `SDLGPU::writeToGPUTransferBuffer`.
 
-## Seven classes are empty
+## Six classes are empty
 
-`SDLAssert`, `SDLList`, `SDLLog`, `SDLUtils`, `Events\SDLKeymap`,
-`Events\SDLScancodeTables` and `Events\SDLWindowEvents` declare no public
-methods at 0.7.0. They are projected as empty final classes rather than
-omitted, so the parity gate can see the class exists and that nothing was
-silently skipped.
+`SDLAssert`, `SDLList`, `SDLLog`, `SDLUtils`, `Events\SDLKeymap` and
+`Events\SDLScancodeTables` declare no public methods at 0.8.0. They are
+projected as empty final classes rather than omitted, so the parity gate can
+see the class exists and that nothing was silently skipped.
+`Events\SDLWindowEvents` was the seventh through 0.7.0; the 0.8.0 wave gave it
+`SDLReadWindowEvent`, so it is no longer empty.
 
 ## Four helpers are not public
 
 `SDLSurface::buildSurfaceArray`, `packSurfaceFromPtr`, `buildPaletteArray` and
 `packPaletteFromPtr` are non-public and therefore not projected. If you count
-720 methods by reflection and this package says 716, that is the difference.
+731 methods by reflection and this package says 727, that is the difference.

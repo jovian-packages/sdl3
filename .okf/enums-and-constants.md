@@ -1,44 +1,89 @@
 ---
 type: Concept
-title: The 39 mined enum families, and why bitmasks stay int
+title: The 55 mined enum families, and why bitmasks stay int
 description: >-
   ext-sdl3 exposes zero PHP-visible constants, so every family here is mined
   from the SDL3 headers. Reachability decides which, the enum/bitmask split
   decides how they are typed, and a C compiler decides whether the values are
   right.
-tags: [enums, constants, bitmask, headers, sdl3]
+tags: [enums, constants, bitmask, headers, sdl3, sdl-gpu]
 status: draft
 generated:
   by: claude-fable-5
   at: 2026-09-13T00:00:00Z
+updated:
+  by: claude-opus-5-1m
+  at: 2026-09-14T00:00:00Z
 ---
 
 # Enums and constants
 
-`php --ri sdl3` reports 29 classes and nothing else. Reflection confirms it:
+`php --ri sdl3` reports 31 classes and nothing else. Reflection confirms it:
 **0 functions, 0 global constants, 0 class constants**. Every named value SDL
 has — `SDL_INIT_VIDEO`, `SDL_PIXELFORMAT_ARGB8888`, `SDL_EVENT_QUIT` — is
 absent from the extension's PHP surface. Under the house rule that constants
 live in jovian, that makes this package their only home, and the SDL3 C headers
 their only source.
 
-Result: **39 families, 836 cases.**
+Result: **55 families, 925 cases.**
 
 ## Which families get mined: reachability
 
 A family earns an enum by being **reachable** — it is the C type of a parameter
 or a return on a method this package projects. That keeps the surface bounded
 to what is usable without boiling the SDK: SDL3 declares 95 `typedef enum`
-families and 21 bitmask typedefs, of which 39 are reachable.
+families and 21 bitmask typedefs, of which 39 are reachable this way.
 
 The largest are `SDLScancode` (249), `SDLEventType` (120),
 `SDLGPUTextureFormat` (105) and `SDLPixelFormat` (65); the smallest is
 `SDLGPUIndexElementSize` (2).
 
-One documented exception, in `scripts/Generator/extra-enums.php`:
+Documented exceptions live in `scripts/Generator/extra-enums.php`, 17 families
+that reachability misses:
+
 **`SDL_EventType`**. The extension reads `SDL_Event` apart in C and returns a
 plain array, so an event's `type` reaches PHP as an int that no C prototype
 mentions. Reachability misses it, and without it nothing can act on an event.
+
+**Sixteen `SDL_GPU*` createinfo families (task 12b)**. `SDL_CreateGPUGraphicsPipeline`,
+`SDL_CreateGPUSampler`, `SDL_CreateGPUBuffer` and their siblings all take their
+createinfo struct as one opaque `array` — ext-sdl3 reads it apart in C the same
+way it reads `SDL_Event` apart, so a member like `primitive_type` or
+`fill_mode` is never the declared C type of any projected parameter or return.
+`venusian-sdl3`'s SDL_GPU engine (task 16) still needs these named as enums
+rather than hand-invented int constants — that is exactly the layering
+violation task 12b closes: C constants belong to the projection, not to the
+consumer. Added by grepping that consumer's createinfo arrays for every
+member it sets as a raw int:
+
+| Family | Cases | Struct member |
+|---|---|---|
+| `SDLGPUPrimitiveType` | 5 | `SDL_GPUGraphicsPipelineCreateInfo.primitive_type` |
+| `SDLGPULoadOp` | 3 | `SDL_GPUColorTargetInfo`/`SDL_GPUDepthStencilTargetInfo.load_op` |
+| `SDLGPUStoreOp` | 4 | `SDL_GPUColorTargetInfo`/`SDL_GPUDepthStencilTargetInfo.store_op` |
+| `SDLGPUVertexElementFormat` | 31 | `SDL_GPUVertexAttribute.format` |
+| `SDLGPUVertexInputRate` | 2 | `SDL_GPUVertexBufferDescription.input_rate` |
+| `SDLGPUShaderStage` | 2 | `SDL_GPUShaderCreateInfo.stage` |
+| `SDLGPUFillMode` | 2 | `SDL_GPURasterizerState.fill_mode` |
+| `SDLGPUCullMode` | 3 | `SDL_GPURasterizerState.cull_mode` |
+| `SDLGPUFrontFace` | 2 | `SDL_GPURasterizerState.front_face` |
+| `SDLGPUBlendOp` | 6 | `SDL_GPUColorTargetBlendState.{color,alpha}_blend_op` |
+| `SDLGPUBlendFactor` | 14 | `SDL_GPUColorTargetBlendState.{src,dst}_{color,alpha}_blendfactor` |
+| `SDLGPUFilter` | 2 | `SDL_GPUSamplerCreateInfo.{min,mag}_filter`, `SDL_GPUBlitInfo.filter` |
+| `SDLGPUSamplerMipmapMode` | 2 | `SDL_GPUSamplerCreateInfo.mipmap_mode` |
+| `SDLGPUSamplerAddressMode` | 3 | `SDL_GPUSamplerCreateInfo.address_mode_{u,v,w}` |
+| `SDLGPUTransferBufferUsage` | 2 | `SDL_GPUTransferBufferCreateInfo.usage` |
+| `SDLGPUBufferUsageFlags` (bitmask) | 6 | `SDL_GPUBufferCreateInfo.usage` |
+
+`SDL_GPUTextureType`, `SDL_GPUTextureFormat`, `SDL_GPUSampleCount`,
+`SDL_GPUTextureUsageFlags`, `SDL_GPUShaderFormat`, `SDL_GPUIndexElementSize`,
+`SDL_GPUPresentMode` and `SDL_GPUSwapchainComposition` were already reachable
+before task 12b (some other SDL_GPU parameter or return is typed with them)
+and are not repeated in `extra-enums.php`. `SDL_GPUCompareOp`,
+`SDL_GPUStencilOp` and `SDL_GPUColorComponentFlags` are real SDL_GPU families
+too, but nothing task 16 sets — colour write mask and depth/stencil compare
+ops stay at their SDL default — so they are left unmined; add them here if a
+future consumer needs them.
 
 ## How they are typed: the enum / bitmask split
 
@@ -51,8 +96,11 @@ parameter of that type projects as `SDLScaleMode|int`, and the body forwards
 **`typedef Uint64 SDL_WindowFlags;` + a run of `#define`s** — members are bits
 that callers OR together. PHP enum cases cannot be OR'd, so **these parameters
 stay `int`**; the enum exists only to name the bits, and a `@param` line on the
-method says so. Six families: `SDLInitFlags`, `SDLWindowFlags`, `SDLKeymod`,
-`SDLBlendMode`, `SDLGPUShaderFormat`, `SDLGPUTextureUsageFlags`.
+method says so. Seven families: `SDLInitFlags`, `SDLWindowFlags`, `SDLKeymod`,
+`SDLBlendMode`, `SDLGPUShaderFormat`, `SDLGPUTextureUsageFlags`, and
+`SDLGPUBufferUsageFlags` (an `extra-enums.php` exception, so no projected
+parameter is actually declared `int` against it — only pipeline `usage` calls
+its cases, as raw `->value`).
 
 ```php
 SDL::SDLInit(SDLInitFlags::VIDEO->value | SDLInitFlags::EVENTS->value);
@@ -104,7 +152,7 @@ case VIDEO = 32; // SDL_INIT_VIDEO
 That is what a reader needs to check a value against SDL's documentation, and
 it is what `scripts/gates/verify-enum-values.mjs` compiles. The generator says
 which constant it read; the C compiler says what that constant is worth. All
-836 agree.
+925 agree.
 
 ## The `SDL_oldnames.h` trap
 

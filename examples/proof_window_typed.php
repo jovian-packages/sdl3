@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
-| Exit proof for jovian/sdl3 0.8.0 against ext-sdl3 0.7.0.
+| Exit proof for jovian/sdl3 0.8.0 against ext-sdl3 0.8.0.
 |
 |   php examples/proof_window_typed.php
 |
@@ -80,7 +80,7 @@ if (!extension_loaded('sdl3')) {
     exit(1);
 }
 
-echo "jovian/sdl3 0.8.0 — typed window proof against ext-sdl3 0.7.0\n";
+echo "jovian/sdl3 0.8.0 — typed window proof against ext-sdl3 0.8.0\n";
 
 /* 1. Init, through the mined enum. ------------------------------------- */
 

@@ -10,6 +10,9 @@ declare(strict_types=1);
 | covers what a PHP process can see on its own.
 */
 
+use Jovian\Bindings\Sdl3\Enums\SDLGPUBlendFactor;
+use Jovian\Bindings\Sdl3\Enums\SDLGPUBufferUsageFlags;
+use Jovian\Bindings\Sdl3\Enums\SDLGPUPrimitiveType;
 use Jovian\Bindings\Sdl3\Enums\SDLInitFlags;
 use Jovian\Bindings\Sdl3\Enums\SDLPixelFormat;
 use Jovian\Bindings\Sdl3\Enums\SDLScaleMode;
@@ -96,4 +99,14 @@ it('mines the families the surface actually needs', function (): void {
     expect(SDLScaleMode::NEAREST->value)->toBe(0);
     expect(SDLPixelFormat::tryFrom(SDLPixelFormat::ARGB8888->value))->not->toBeNull();
     expect(count(SDLWindowFlags::cases()))->toBeGreaterThan(10);
+});
+
+it('projects the SDL_GPU createinfo families extra-enums.php names, with the header values', function (): void {
+    // These C members live inside createinfo arrays the extension reads
+    // apart in C — no prototype names them, so extra-enums.php lists the
+    // families explicitly (the same mechanism as SDL_EventType). venusian-sdl3
+    // (task 16) imports these verbatim instead of inventing its own copies.
+    expect(SDLGPUPrimitiveType::TRIANGLELIST->value)->toBe(0);       // SDL_GPU_PRIMITIVETYPE_TRIANGLELIST
+    expect(SDLGPUBlendFactor::SRC_ALPHA->value)->toBe(7);            // SDL_GPU_BLENDFACTOR_SRC_ALPHA
+    expect(SDLGPUBufferUsageFlags::VERTEX->value)->toBe(1);          // SDL_GPU_BUFFERUSAGE_VERTEX
 });

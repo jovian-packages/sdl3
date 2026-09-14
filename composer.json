@@ -27,7 +27,7 @@
     ],
     "require": {
         "php": "^8.4|^8.5|^8.6",
-        "ext-sdl3": "^0.7.0"
+        "ext-sdl3": "^0.8.0"
     },
     "require-dev": {
         "pestphp/pest": "^4"

@@ -2,8 +2,8 @@
 type: Decision
 title: Optional parameters forward a trimmed argument list, never a guessed default
 description: >-
-  ext-sdl3 declares 110 parameters optional but reports no default through
-  reflection. Rather than invent one, the 72 affected methods forward only the
+  ext-sdl3 declares 111 parameters optional but reports no default through
+  reflection. Rather than invent one, the 73 affected methods forward only the
   arguments the caller actually supplied.
 tags: [projection, reflection, zephir, defaults, sdl3]
 status: draft
@@ -25,7 +25,7 @@ SDLRender::SDLCreateRenderer(int $window, ??? $name = <optional, no default>)
 SDLRender::SDLRenderGeometryRaw(…, int $colorStride = <optional, no default>)
 ```
 
-110 parameters across 72 methods are like this. PHP will not let a projection
+111 parameters across 73 methods are like this. PHP will not let a projection
 declare a parameter optional without writing *some* default, so the generator
 appears to be forced into guessing what ext-sdl3 would have used.
 
@@ -43,8 +43,10 @@ about Zephir:
 1. **For untyped optional parameters, omitting is identical to passing `null`.**
    `SDLCreateRenderer($w)` and `SDLCreateRenderer($w, null)` both produce a
    working renderer on the `metal` backend, and `SDLRenderReadPixels($r)` and
-   `SDLRenderReadPixels($r, null)` return byte-identical pixel data. 78 of the
-   110 are untyped.
+   `SDLRenderReadPixels($r, null)` return byte-identical pixel data. 79 of the
+   111 are untyped — the 0.8.0 wave adds `SDLVulkan::SDLVulkanLoadLibrary`'s
+   `$path`, confirmed the same way: omitted or `null`, SDL searches its own
+   default search path either way.
 2. **For typed optional parameters, the default is not observable from PHP.**
    32 parameters — `int $colorStride`, `bool $cycle`, `int $scaleMode` and
    friends. Nothing in the extension's PHP surface reveals what it uses.
@@ -104,7 +106,7 @@ ArgumentCountError: SDLBlitSurfaceScaled() expects at least 2 arguments, 1 given
 ```
 
 and `verify-parity.mjs` compares both `getNumberOfParameters()` and
-`getNumberOfRequiredParameters()` against reflection for all 716 methods, so
+`getNumberOfRequiredParameters()` against reflection for all 727 methods, so
 the projection cannot quietly make a required parameter optional or the
 reverse. `tests/Feature/VideoRoundTripTest.php` exercises the trimmed list
 directly: it calls `SDLRenderReadPixels($renderer)` with the optional rect

@@ -1,5 +1,139 @@
 # Change log
 
+## 2026-09-14 (later — version relabel)
+
+Package version, `ext-sdl3` require, and every "0.7.1 wave" / "0.8.1"
+label relabeled to 0.8.0: neither jovian/sdl3 0.8.1 nor ext-sdl3 0.7.1
+was ever published, so this wave lands as jovian/sdl3 0.8.0 against
+ext-sdl3 0.8.0 — the two now coincide. `composer.json` (`version`,
+`ext-sdl3` require), `AGENTS.md`, `.okf/**`, `scripts/Generator/HeaderIndex.php`'s
+comment, and `examples/proof_window_typed.php`'s header/echo updated.
+`src/**` regenerated against the rebuilt ext-sdl3 0.8.0 (every generated
+doc comment embeds the installed extension version). True 0.7.0 history
+is left alone.
+
+## 2026-09-14 (task 12b — SDL_GPU createinfo enum families)
+
+Added during execution by controller ruling: Task 16 (`venusian-sdl3`'s
+SDL_GPU engine) had been planned to invent its own `Enums\Gpu\*` copies of
+SDL_GPU C constants. C constants belong to the projection, not the consumer —
+so this wave adds the sixteen missing families to
+`scripts/Generator/extra-enums.php` instead, and Task 16 is amended to import
+the generated enums verbatim.
+
+* **Why reachability misses them**: every `SDL_CreateGPU*`/`SDL_BeginGPU*`
+  prototype ext-sdl3 projects takes its createinfo struct as one opaque
+  `array` — the extension reads the struct apart in C, the same way it reads
+  `SDL_Event` apart for `SDL_EventType`. No projected parameter or return is
+  ever declared with `SDL_GPUPrimitiveType` etc. as its C type, so the miner's
+  default reachability rule cannot find them.
+
+* **Sixteen families added**, chosen by grepping Task 16's createinfo arrays
+  for every member it sets as a raw int: `SDL_GPUPrimitiveType`,
+  `SDL_GPULoadOp`, `SDL_GPUStoreOp`, `SDL_GPUVertexElementFormat`,
+  `SDL_GPUVertexInputRate`, `SDL_GPUShaderStage`, `SDL_GPUFillMode`,
+  `SDL_GPUCullMode`, `SDL_GPUFrontFace`, `SDL_GPUBlendOp`,
+  `SDL_GPUBlendFactor`, `SDL_GPUFilter`, `SDL_GPUSamplerMipmapMode`,
+  `SDL_GPUSamplerAddressMode`, `SDL_GPUTransferBufferUsage`, and the bitmask
+  `SDL_GPUBufferUsageFlags`. Case naming used the generator's existing
+  prefix-stripping rule unmodified — no special-casing needed. Deliberately
+  left unmined: `SDL_GPUCompareOp`, `SDL_GPUStencilOp` and
+  `SDL_GPUColorComponentFlags` — real SDL_GPU families, but nothing in Task
+  16's createinfo arrays sets them as a raw int (colour write mask and
+  depth/stencil compare stay at SDL's default).
+
+* **Regeneration**: `ext=0.8.0 classes=31 methods=727 joined=702 unjoined=25
+  enums=55 (bitmask=7) cases=925 enumParams=76 enumReturns=26 files=86
+  written=16 stale=0 GEN_OK` — 39→55 enums, 836→925 cases (+89), 70→86 files,
+  bitmask families 6→7 (`SDLGPUBufferUsageFlags` joins). `verify-generate`,
+  `verify-parity` (727=727), `verify-style` (86 files), `verify-enum-values`
+  (925 cases compiled against `/opt/homebrew/include/SDL3`), and
+  `verify-ext-control` all green; no generator logic changed, so no gate
+  needed a fix.
+
+* **TDD**: `tests/Enums/EnumShapeTest.php` extended first with a spot check
+  pinning `SDLGPUPrimitiveType::TRIANGLELIST` = 0, `SDLGPUBlendFactor::SRC_ALPHA`
+  = 7 and `SDLGPUBufferUsageFlags::VERTEX` = 1 against the header values
+  (RED — classes not found). `extra-enums.php` extended and
+  `php scripts/generate.php` run (GREEN, no other change needed).
+
+* **Tests**: 29 Pest tests (was 28), 6530 assertions.
+
+* **AGENTS.md rule 10** now names the seventeen `extra-enums.php` exception
+  families (`SDL_EventType` plus the sixteen SDL_GPU ones) instead of just
+  `SDL_EventType`.
+
+## 2026-09-14 (0.8.0 — Metal, Vulkan, window events)
+
+Regenerated over ext-sdl3 0.8.0 (Task 12 of the Stage plan). Package now
+requires `ext-sdl3 ^0.8.0`. jovian/venusian-sdl3's stage host and GPU engine
+need this.
+
+* **New surface**: `Video\SDLMetal` (3 methods), `Video\SDLVulkan` (7),
+  `Events\SDLWindowEvents::SDLReadWindowEvent` (1). 11 new methods, 2 new
+  classes. `ext=0.8.0 classes=31 methods=727 joined=702 unjoined=25 enums=39
+  (bitmask=6) cases=836 enumParams=76 enumReturns=26 files=70 GEN_OK` — exactly
+  the brief's expected counts (727/31/702/25).
+
+* **Two generator bugs found and fixed, neither hand-patched in `src/`:**
+  1. `HeaderIndex` excluded `SDL_vulkan.h` alongside the vendored
+     `SDL_opengl*`/`SDL_egl*` headers on "not SDL's own surface" reasoning.
+     Wrong — it's a thin 287-line SDL wrapper, same shape as `SDL_metal.h`,
+     and it holds the `SDL_Vulkan_*` prototypes the join needs. Narrowed the
+     skip to the two vendored prefixes.
+  2. `ExtMethod::cFunctionCandidates()` only knew the `GL`/`EGL` subsystem
+     underscore-flattening (`SDLGLCreateContext` → `SDL_GL_CreateContext`).
+     Added `Metal` and `Vulkan` to the same list, so `SDLMetalCreateView` →
+     `SDL_Metal_CreateView` and `SDLVulkanLoadLibrary` → `SDL_Vulkan_LoadLibrary`
+     resolve. Before both fixes: `joined=692 unjoined=35` — none of the 11 new
+     methods joined; the ten new methods weren't merely unjoined, they landed
+     in the *wrong* bucket (silently indistinguishable from real extension
+     glue) until the count came up short of the wave's total.
+
+* **The known null-default risk did not materialize.** `SDLVulkanLoadLibrary`'s
+  `path` parameter reflects `isOptional() === true` and throws on
+  `getDefaultValue()` (`Internal error: Failed to retrieve the default
+  value`), same as the ext task flagged. `ExtSurface::parameter()` never calls
+  `getDefaultValue()` — it only reads `isOptional()` and `getType()`, neither
+  of which throws — so the generator was already immune. Emitted signature:
+  `SDLVulkanLoadLibrary(mixed $path = null): bool`, matching the existing
+  "untyped optional forwards trimmed" rule (`.okf/optional-params.md`); no
+  generator change needed for this part.
+
+* **Optional parameters**: 110 → 111 (the new `path`), 72 → 73 methods
+  affected. 79 of 111 are untyped (was 78); the split and the trimmed-forward
+  mechanism are unchanged.
+
+* **New quirks, mirrored not smoothed** (`.okf/quirks.md`): `SDLVulkan` and
+  `SDLMetal` handles are pointer-bits like everything else; `SDLVulkanCreateSurface`
+  returns `0` on failure like any other creator; `SDLVulkanLoadLibrary` needs
+  `SDL_Init(VIDEO)` first (SDL's own precondition, confirmed by a real failing
+  call: `"Video subsystem has not been initialized"`); `SDLMetalCreateView`
+  alone breaks the "SDL never throws" convention — the extension raises
+  `\RuntimeException` on a null view instead of returning `0`, and the
+  projection mirrors that exactly (one ext call, whatever it does).
+  `Events\SDLWindowEvents` is no longer one of the empty classes — six now,
+  not seven.
+
+* **TDD**: `tests/Feature/WaveTest.php` written first (RED — `SDLMetal` class
+  not found, 4 failing). Generator regenerated (GREEN after the two fixes
+  above). One test in the file needed a real fix, not a generator fix: the
+  brief's literal "names the Vulkan instance extensions" test called
+  `SDLVulkanLoadLibrary()` without `SDL_Init(VIDEO)` first, which fails for
+  real reasons on any machine (see quirk above) — added the
+  `sdl3InitVideo()`/`sdl3QuitVideo()` pairing the rest of the suite already
+  uses (`tests/Pest.php`).
+
+* **Gates**: all six green — `verify-generate`, `verify-parity` (727=727),
+  `verify-style` (70 files), `verify-enum-values` (836 cases, unchanged —
+  no new enum families reachable), `verify-ext-control`.
+
+* **Tests**: 28 Pest tests (was 24), 6342 assertions, green with ext-sdl3
+  0.8.0 and SDL 3.4.4 on the same M1 / metal backend.
+
+* **Proof**: `examples/proof_window_typed.php` re-run clean, version strings
+  bumped to 0.8.0/0.8.0 in its banner (hand-written example, not generated).
+
 ## 2026-09-13 (0.8.0 — the package)
 
 Built from scratch against ext-sdl3 0.7.0, as roadmap step 10 of the Venusian

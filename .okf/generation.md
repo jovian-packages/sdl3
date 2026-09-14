@@ -23,8 +23,8 @@ php scripts/generate.php --check    # fail if anything would change
 Current output:
 
 ```
-ext=0.7.0 classes=29 methods=716 joined=692 unjoined=24 enums=39 (bitmask=6)
-cases=836 enumParams=76 enumReturns=26 files=68 written=0 stale=0
+ext=0.8.0 classes=31 methods=727 joined=702 unjoined=25 enums=55 (bitmask=7)
+cases=925 enumParams=76 enumReturns=26 files=86 written=0 stale=0
 ```
 
 ## Two inputs, and why
@@ -64,9 +64,15 @@ case and underscores removed.
 
 **Method names** need candidates rather than a single spelling, because the
 extension flattens SDL's subsystem underscores: `SDLGLCreateContext` is
-`SDL_GL_CreateContext`, and `SDLRand` is lower-case `SDL_rand`.
-`ExtMethod::cFunctionCandidates()` generates the alternatives and the first one
-the header index knows wins.
+`SDL_GL_CreateContext`, `SDLMetalCreateView` is `SDL_Metal_CreateView`,
+`SDLVulkanLoadLibrary` is `SDL_Vulkan_LoadLibrary`, and `SDLRand` is
+lower-case `SDL_rand`. `ExtMethod::cFunctionCandidates()` generates the
+alternatives (`EGL`, `GL`, `Metal`, `Vulkan` subsystem prefixes, plus the
+lower-cased stdinc spelling) and the first one the header index knows wins.
+The 0.8.0 wave added the `Metal`/`Vulkan` prefixes — without them
+`SDLMetalCreateView` and the seven `SDLVulkan*` methods joined nothing, same
+failure mode as an unjoined method, just for a name the header index would
+have recognized under its real spelling.
 
 ## The two exception tables
 
@@ -85,14 +91,28 @@ union apart in C and returns a plain array, so the event's `type` reaches PHP
 as an int that no prototype mentions. Reachability misses it entirely, and
 without it the event surface cannot be used at all.
 
-## The 24 unjoined methods
+## SDL_vulkan.h is read; the OpenGL/EGL vendor headers are not
 
-692 of 716 methods matched an SDL3 prototype. The remaining 24 are extension
+`HeaderIndex` skips `SDL_opengl*.h` and `SDL_egl*.h` outright — they vendor
+thousands of Khronos `#define`s that are not SDL's own surface and would
+pollute the flag miner. `SDL_vulkan.h` was skipped alongside them through
+0.8.0 on the same "not SDL's own surface" reasoning, which was wrong: it is a
+287-line SDL-authored wrapper, the same shape as `SDL_metal.h`, and it is
+where the `SDL_Vulkan_*` prototypes the 0.8.0 wave needs to join against live.
+Excluding it did not fail loudly — the seven `SDLVulkan*` methods just stayed
+unjoined, indistinguishable from genuine extension glue until the join count
+came up ten short of the wave's total. Fixed by narrowing the skip list to the
+two vendored prefixes.
+
+## The 25 unjoined methods
+
+702 of 727 methods matched an SDL3 prototype. The remaining 25 are extension
 glue with no C counterpart and are projected untyped, which is correct — there
 is no C declaration to be faithful to. They fall into three groups:
 
-* **Event readers** (16): `SDLReadEvent`, `SDLReadMouseButtonEvent`,
-  `SDLReadKeyboardEvent`, `SDLFreeEvent` and siblings. These exist because
+* **Event readers** (17): `SDLReadEvent`, `SDLReadMouseButtonEvent`,
+  `SDLReadKeyboardEvent`, `SDLFreeEvent` and siblings, plus
+  `SDLWindowEvents::SDLReadWindowEvent` (0.8.0). These exist because
   `SDL_Event` is a union that cannot cross into PHP; the extension decomposes
   it in C.
 * **Surface and transfer-buffer helpers** (6): `SDLReadSurfacePixels`,
@@ -105,7 +125,7 @@ is no C declaration to be faithful to. They fall into three groups:
 
 Four further non-public helpers (`buildSurfaceArray`, `packSurfaceFromPtr`,
 `buildPaletteArray`, `packPaletteFromPtr`) are excluded because they are not
-public. That is the 720 → 716 difference if you count methods yourself.
+public. That is the 731 → 727 difference if you count methods yourself.
 
 ## What each gate proves
 
@@ -123,7 +143,7 @@ confidently wrong. So the gate does not re-read the headers with the same code:
 it writes a C program that prints every constant the package emits *by the C
 name the generator recorded in the case's trailing comment*, compiles it
 against the real headers, and diffs. A wrong value fails the diff; an invented
-name fails to compile. 836 of 836 agree.
+name fails to compile. 925 of 925 agree.
 
 ## Adding a gate
 
