@@ -114,7 +114,7 @@ final class SDLEvents
     /**
      * SDL_WaitEventTimeout().
      */
-    public static function SDLWaitEventTimeout(int $timeout_ms): int
+    public static function SDLWaitEventTimeout(int $timeout_ms): ?array
     {
         return ExtSDLEvents::SDLWaitEventTimeout($timeout_ms);
     }

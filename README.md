@@ -2,9 +2,8 @@
 
 Typed PHP projection of [`ext-sdl3`](https://github.com/php-io-extensions/sdl3).
 
-**jovian/sdl3 0.8.0 projects ext-sdl3 0.7.0**, which links SDL **3.4.4**. The
-package and extension versions differ deliberately; the Composer constraint is
-`ext-sdl3: ^0.7.0`.
+**jovian/sdl3 0.8.0 projects ext-sdl3 0.8.0**, which links SDL **3.4.4**. The
+Composer constraint is `ext-sdl3: ^0.8.0`.
 
 ```
 ext-sdl3  →  jovian/sdl3  →  venusian-sdl3  →  Surface
@@ -28,6 +27,11 @@ Everything else is a faithful 1:1 forward. One PHP method, one extension call,
 same arguments in the same order. No behaviour is added — no exceptions, no
 reshaped returns, no invented defaults.
 
+Input for `venusian-sdl3`'s `input.sdl3` engine comes through here as-is:
+keyboard, mouse and gamepad calls, event reads, and
+`SDLEvents::SDLWaitEventTimeout(int $ms): ?array` (`['ptr', 'event_type']`
+or null), which lets a stage that owns the macOS event pump wait for input.
+
 ## Install
 
 ```bash
@@ -39,7 +43,7 @@ told where to find it:
 
 ```bash
 export HERD_PHP_84_INI_SCAN_DIR=$(zsh -ic 'echo $HERD_PHP_84_INI_SCAN_DIR')
-php --ri sdl3        # should report 0.7.0
+php --ri sdl3        # should report 0.8.0
 ```
 
 ## Use
